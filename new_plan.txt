@@ -1,0 +1,301 @@
+--- searchable trie string file ---
+
+Consists of a sequence of word-part lists
+Each word-part list has an index, followed by the list of word-parts
+The index consists of a 1-byte item count, followed by the index items.
+
+Word-part-list:
+  Index
+  Word-parts
+    These are in alphabetical order
+    Under each word-part may be another word-part-list
+    
+Word-part-list details:
+  Index:
+    index-count: 1-byte
+    array of index items, each one:
+      1> First char of word part
+      2> 3-bytes
+         first bit: value indicator. If set, a 2-byte value follows the
+           char sequence in the word-part
+         remaining bits (23) are offset to the word-part
+      3> 2-byte
+         first bit: down level indicator. If set, another word-part-list
+           follows the word-part
+         remaining 15 bits are len of char sequence
+      
+  Word-parts, each one:
+    1> sequence of remaining characters in word part. Could be null.
+       First char of word-part is in the index
+    2> value, 2-bytes, if the value indicator is set in the index
+     
+
+--- To generate the trie file, we build an internal tree
+Suppose we have this input:
+
+APPLE,0
+BAD,1
+BAKER,2
+BAKERY,3
+BAKES,4
+BALL,5
+BALLOON,6
+BALLOT,7
+BALLS,8
+CANDY,9
+
+--- We build this tree internally
+
+[APPLE],0 --> [BA] --> [CANDY],9
+               |
+              [D],1 --> [KE] ------> [LL],5
+                         |            |
+                   -------           [O] -> [S],8
+                   |                  |
+                  [R],2 --> [S],4    [ON],6 -> [T],7
+                   |
+                  [Y],3     
+
+Apple, BA and Candy will be in a linked list.
+D, KE and LL will be in a linked list.
+R, S will be in a linked list
+etc.
+
+--- Steps:
+
+1> Read the input into a linked list using utlist
+2> Sort, using utlist
+3> Build tree, by calling 'add_word' for each word
+4> Traverse the internal tree as if we were writing it out,
+   but just insert the byte pos of each word-part
+5> Create the stream by traversing the internal tree again.
+
+
+--- Internal Tree structure
+
+Consists of lists and nodes.
+
+The lists are:
+
+typedef struct {
+  word_part_t *head;  // this is a utlist node
+} word_part_list_t;
+
+Each word part node will be as follows:
+
+typedef struct word_part {
+  char *seq;
+  int seq_len;
+  unsigned int byte_pos;
+  unsigned int value;
+  word_part_list_t *down;
+  struct word_part_t *next;
+} word_part_t;
+
+
+--- Algorithm for building internal tree ---
+
+Set tree empty. This is an empty list.
+For each word in the input list, call 'add_word'
+
+As you step through the tree, keep a stack of the lists that you pass through.
+Use a utlist for the stack, and LL_PREPEND for a push.
+
+'add_word' works as follows:
+
+Set matched-so-far = 0
+Current-ptr is a pointer to the current node or the current list or empty
+Set Current to top list in tree, or empty if tree is empty
+
+If tree is empty:
+  create new list at top level with new word as first element
+  return DONE 
+
+Loop:
+
+ search_seg = word[matched-so-far:]
+ Match first char of search-seg to the first char of each word in list
+   at current level.
+ If not found, add word/segment to the list at current level,
+   return DONE
+ Match remainder of search-seg to remainder of found node.
+ Cases:
+   a) all of search-seg, all of node
+   b) all of search-seg, front of node
+      Example: search-seg [KE],1  node	[KER]
+                                         |
+                                        [Y],3
+      New node:  [KE],1
+                  |
+                 [R]
+                  |
+                 [Y],3
+   c) front of search-seg, all of node
+      Example:  search-seg [KERS],1  node  [KER]
+                                            |
+                                           [Y],3
+      New node  [KER]
+                  |
+                 [S],1 --> [Y],3
+   d) front of search-seg, front of node
+      Example:	search-seg [KERS],1  node  [KER]
+                                            |
+                                           [Y],3
+      New node  [KE]
+                 |
+                [R] --> [S],2
+                 |
+                [Y],3
+                
+                
+                                            
+ Case a:
+   if there already is a value
+     return ALREADY-FOUND-IN-TREE
+   else
+     add the value
+ Case b:
+   Split node:
+    Create new list with remainder of node as first node in new list. 
+    Copy value.
+    Set value of found node.
+    return DONE
+ Case c:
+   if no list under found node, create a new list, with remainder of 
+    search-seg as first node of the new list. Set value. 
+    return DONE.
+   if there is a list,
+    set current-ptr to point to the list, set matched-so-far = 
+      len of node seg,
+    loop
+ Case d:
+   Split node.
+    Create new list with remainder of node as first node in new list. 
+    Copy value.
+    Add remainder of search-seg to new list. Set value.
+    return DONE
+
+---- Traversing internal tree to insert byte positions ----
+
+Set Search stack level = 0.
+Set current_pos = 0.
+Point to first word-part of top word-part-list.
+
+def size_index (word-part-list)
+  compute len of index = 1 + 6*word-part-count
+  set current_pos += index len
+  return ptr to first word-part in list
+
+
+set current_pos = size_index (top word_part_list)
+
+Loop1:
+
+  Set byte pos in word-part node = current-pos
+    
+  Add len of character seg to current pos.
+  If there is a value, add 2 to current_pos.
+
+  If there is a down ptr:
+    Push current node onto search stack
+    set current_pos += size_index (down list)
+    set ptr to first word-part of down list
+    Loop 1
+    
+  Loop2:
+    If there is a ptr to next:
+      set current ptr to next
+      break (Loop1)
+    If we are at level 0, then exit. We are done.
+    Pop previous node.
+    Loop 2
+    
+  Loop 1
+   
+
+---- Write Stream Algorithm ---
+
+Which traverses the internal tree.
+
+Set Search stack level = 0.
+
+def write_index (word-part-list)
+  get len of current list
+  write len byte
+  loop through the utlist of tree:
+    write 1st byte of char seg
+    write 3-byte offset to the word-part node, setting
+      high bit if there is  value
+    write 2-byte char seq len, setting high bit if there is a
+      down level list
+
+
+write_index (top word_part_list)
+Point to first word-part of top word-part-list.
+
+Loop1:
+
+  Write character seg, maybe null.
+  If there is a value, write the 2-byte value
+
+  If there is a down ptr:
+    Push current node onto search stack
+    write_index (down list)
+    set ptr to first word-part of down list
+    Loop 1
+    
+  Loop2:
+    If there is a ptr to next:
+      set current ptr to next
+      break (Loop1)
+    If we are at level 0, then exit. We are done.
+    Pop previous node.
+    Loop 2
+    
+  Loop 1
+
+
+
+---- Search Stream Algorithm ---
+
+Set matched-so-far = 0
+point to first char, which is the fron of top level word-part-list
+
+Loop:
+
+  first-search-char = search-word[matched-so-far]
+  find first-search char in word-part-list index
+  if not found:
+    return NOT_FOUND
+  get len of word-part-node that you found
+  rem-len = len (remaining search word)
+  if rem-len < word-part-len:
+    return NOT_FOUND
+  if rem-len = word-part-len:  
+    if no value indicated:
+      return NOT_FOUND
+    if rem-len = 0
+      matched = True
+    else
+      match remaining chars in search word
+      if they match
+        return the value
+      else
+        return NOT_FOUND
+  else (rem-len > word-part-len)
+    if no down level indicated:
+      return NOT_FOUND
+    if word-part-len = 0
+      matched = True
+    else
+      match word-part-len characters
+      if they match:
+        add word-part-len, +1 for first char, to matched-so-far
+        point past current word-part
+        Loop
+      else
+        return NOT_FOUND
+        
+       
+ 
+ 
