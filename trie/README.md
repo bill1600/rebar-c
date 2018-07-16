@@ -5,49 +5,49 @@ C Implementation of trie generation and lookup
 
 # INTRODUCTION
 
-It consists of a sequence of word-part lists
+It consists of a sequence of word-part lists.
 Each word-part list has an index, followed by the list of word-parts
 The index consists of a 1-byte item count, followed by the index items.
 
-Word-part-list:
-  Index
-  Word-parts
-    These are in alphabetical order
-    Under each word-part may be another word-part-list
+Word-part-list:  
+  Index  
+  Word-parts  
+    These are in alphabetical order  
+    Under each word-part may be another word-part-list  
     
-Word-part-list details:
-  Index:
-    index-count: 1-byte
-    array of index items, each one:
-      1> First char of word part
-      2> 3-bytes
-         first bit: value indicator. If set, a 2-byte value follows the
-           char sequence in the word-part
-         remaining bits (23) are offset to the word-part
-      3> 2-byte
-         first bit: down level indicator. If set, another word-part-list
-           follows the word-part
-         remaining 15 bits are len of char sequence
+Word-part-list details:  
+  Index:  
+    index-count: 1-byte  
+    array of index items, each one:  
+      1> First char of word part  
+      2> 3-bytes  
+         first bit: value indicator. If set, a 2-byte value follows the  
+           char sequence in the word-part  
+         remaining bits (23) are offset to the word-part  
+      3> 2-byte  
+         first bit: down level indicator. If set, another word-part-list  
+           follows the word-part  
+         remaining 15 bits are len of char sequence  
       
-  Word-parts, each one:
-    1> sequence of remaining characters in word part. Could be null.
-       First char of word-part is in the index
-    2> value, 2-bytes, if the value indicator is set in the index
+  Word-parts, each one:  
+    1> sequence of remaining characters in word part. Could be null.  
+       First char of word-part is in the index  
+    2> value, 2-bytes, if the value indicator is set in the index  
      
 
---- To generate the trie file, we build an internal tree
-Suppose we have this input:
+--- To generate the trie file, we build an internal tree  
+Suppose we have this input:  
 
-APPLE 0
-BAD 1
-BAKER 2
-BAKERY 3
-BAKES 4
-BALL 5
-BALLOON 6
-BALLOT 7
-BALLS 8
-CANDY 9
+APPLE 0  
+BAD 1  
+BAKER 2  
+BAKERY 3  
+BAKES 4  
+BALL 5  
+BALLOON 6  
+BALLOT 7  
+BALLS 8  
+CANDY 9  
 
 --- We build this tree internally
 
