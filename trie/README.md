@@ -9,6 +9,7 @@ Description is in file description.txt
  
  generator program is gen_trie.c  
  it requires utlist.h  
+   which comes from https://github.com/troydhanson/uthash  
  
  build it with  
  
