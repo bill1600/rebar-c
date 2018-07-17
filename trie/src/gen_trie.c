@@ -7,7 +7,7 @@
 #define _GNU_SOURCE 1
 // We need _GNU_SOURCE for our usage of strerror_r
 
-#include "utlist.h"
+#include "utlist.h"	// from https://github.com/troydhanson/uthash
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>	// malloc
@@ -592,7 +592,7 @@ void write_index (struct word_part_list *index, FILE *ofile, FILE *hfile)
     obyte[1] = word_len & 0xFF;
     obyte[0] = (word_len >> 8);
     if (NULL != word_part->down)
-      obyte[0] != 0x80;
+      obyte[0] |= 0x80;
     write_byte (obyte[0], true, ofile, hfile);
     write_byte (obyte[1], true, ofile, hfile);
   }
