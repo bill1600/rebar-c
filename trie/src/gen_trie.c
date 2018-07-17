@@ -62,19 +62,31 @@ void show_os_error (const char *msg, int err_code)
 
 #define MAX_INLINE 8192
 
+unsigned int input_value = 0;
+int input_format = 0; // 2 is keyword value, 1 is keyword without value
+
 key_value_input_t *load_input_line (char *line_ptr)
 {
   char keyword[MAX_INLINE];
   int scanf_count;
-  unsigned value;
   key_value_input_t *new_input;
 
-  scanf_count = sscanf (line_ptr, "%8192s %u", keyword, &value);
-  if (2 != scanf_count) {
+  scanf_count = sscanf (line_ptr, "%8192s %u", keyword, &input_value);
+  if ((2 != scanf_count) && (1 != scanf_count)) {
     printf ("Line format error, scan count %d in:\n", scanf_count);
     fputs (line_ptr, stdout);
     return NULL;
   }
+  if (input_format != scanf_count) {
+    if (input_format == 0) {
+      input_format = scanf_count;
+    } else {
+      printf ("input file format should not change\n");
+      return NULL;
+    }
+  }
+  if (1 == scanf_count)
+    ++input_value; 
   new_input = (key_value_input_t *) malloc (sizeof(key_value_input_t));
   if (NULL == new_input) {
     printf ("memory allocation failed (1) reading keyword input file\n");
@@ -87,7 +99,7 @@ key_value_input_t *load_input_line (char *line_ptr)
     return NULL;
   }
   strcpy (new_input->keyword, keyword);
-  new_input->value = value;
+  new_input->value = input_value;
   new_input->next = NULL;
   return new_input;
 }
@@ -106,6 +118,9 @@ int load_input_list__ (FILE *ifile)
   size_t white_span;
   
   input_list = NULL;
+  input_value = 0;
+  input_format = 0;
+  
   while (true) {
     line_ptr = fgets (in_line, MAX_INLINE, ifile);
     if (NULL == line_ptr) {
@@ -189,9 +204,6 @@ struct word_part_list *create_word_part_list__ (struct word_part_node *first_wor
   if (NULL != first_word) {
     LL_APPEND (new_list->head, first_word);
   }
-  ++current_stack_depth;
-  if (current_stack_depth > max_stack_depth)
-    max_stack_depth = current_stack_depth;
   return new_list;  
 }
 
@@ -258,8 +270,6 @@ int itrie_add_word (char *word, unsigned int value)
   unsigned int matched_so_far = 0;
   struct word_part_list * current_list = itrie_top;
 
-  current_stack_depth = 1;
-    
   while (true) {
     unsigned int match_len;
     struct word_part_node *found_node = 
@@ -286,6 +296,9 @@ int itrie_add_word (char *word, unsigned int value)
       return BUILD_ITRIE_ALREADY_IN_TRIE;
     }
  
+    /* Each of the following cases adds a stack level */
+    ++current_stack_depth;
+    
     /* second case: all of remaining search word matched front of word_part_mode */
     if (match_len == (word_len-matched_so_far))
     {
@@ -296,7 +309,6 @@ int itrie_add_word (char *word, unsigned int value)
       found_node->value = value;
       break;
     }
-
 
     /* third case: front of remaining search word matched all of word_part_mode */
     if (match_len == found_node->seq_len)
@@ -342,9 +354,15 @@ int build_itrie (void)
 
   max_stack_depth = 1;
   LL_FOREACH (input_list, input_item) {
-    int rtn = itrie_add_word (input_item->keyword, input_item->value);
+    int rtn;
+    current_stack_depth = 1;
+    rtn = itrie_add_word (input_item->keyword, input_item->value);
     if (rtn != 0)
       return rtn;
+    if (current_stack_depth > max_stack_depth) {
+      max_stack_depth = current_stack_depth;
+      printf ("max stack_depth %d\n", max_stack_depth);
+    }
   }
   printf ("Build itrie, max_stack_depth %d\n", max_stack_depth);
   return BUILD_ITRIE_SUCCESS;
@@ -783,7 +801,9 @@ int main (int argc, char **argv)
   printf ("Build itrie, rtn = %d\n", rtn);
   if (rtn < 0)
     return 4;
+
   insert_positions_in_itrie ();
+  printf ("Inserted positions in itrie\n");
   if (show_itrie_opt)
     display_itrie ();
     
