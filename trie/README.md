@@ -7,7 +7,9 @@ Description is in file description.txt
        
 # -------- Build Information -----------
  
+## generator program
  generator program is gen_trie.c  
+ 
  it requires utlist.h  
    which comes from https://github.com/troydhanson/uthash  
  
@@ -17,6 +19,17 @@ Description is in file description.txt
  
  the option _GNU_SOURCE is needed to support the usage of strerror_r.  
 
+## trie search module
+ trie search module is search_trie.c
+ 
+ compile it with
+ 
+ gcc -c search_trie.c
+ 
+ link the module search_trie.o with your application, which can
+ call the function 'search_trie'
+ 
+ unsigned int search_trie (const char *trie_stream, const char *keyword);
  
 # -------- Run Information ----------
 
