@@ -77,7 +77,7 @@ It's just the bytes of the trie.
 
 ### test_search
 tests the trie lookup
-run as follow:
+run as follows: 
   ./test_search <name-to-lookup>
   
   returns the value, or an error if not found
