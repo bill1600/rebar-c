@@ -48,7 +48,7 @@ Description is in file description.txt
 
 ## trie generator
 
-gen_trie [optioms] <input_file.txt> [optional byte stream file] [optional .h file]  
+gen_trie [options] <input_file.txt> [optional byte stream file] [optional .h file]  
 
 options are:  
 
@@ -78,7 +78,7 @@ It's just the bytes of the trie.
 ### test_search
 tests the trie lookup  
 run as follows:   
-  ./test_search <name-to-lookup>
+  ./test_search <name_to_lookup>
   
   returns the value, or an error if not found
   
