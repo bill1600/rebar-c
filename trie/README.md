@@ -76,14 +76,14 @@ It's just the bytes of the trie.
 ## Test programs
 
 ### test_search
-tests the trie lookup
-run as follows: 
+tests the trie lookup  
+run as follows:   
   ./test_search <name-to-lookup>
   
   returns the value, or an error if not found
   
 ### test_trie_list
-does timing tests
+does timing tests  
 run as follows:
 
   ./test_trie_list test_long.dat test_long.txt
